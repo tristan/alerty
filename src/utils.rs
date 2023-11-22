@@ -1,4 +1,4 @@
-use std::io::{self, Write, BufRead};
+use std::io::{self, BufRead, Write};
 
 pub fn read_line_from_stdin(text: &str) -> Result<Option<String>, io::Error> {
     print!("{}: ", text);

@@ -1,7 +1,10 @@
+use crate::{
+    source_iter::{AlertSource, AlertSourceConfig},
+    AlertData, AlertyError,
+};
 use cookie_store::CookieStore;
 use scraper::{Html, Selector};
 use serde::Deserialize;
-use crate::{AlertyError, AlertData, source_iter::{AlertSourceConfig, AlertSource}};
 
 pub struct Instagram {
     agent: ureq::Agent,
@@ -33,7 +36,7 @@ struct WebProfileInfoDataUser {
 
 #[derive(Deserialize)]
 struct EdgeOwnerToTimelineMedia {
-    edges: Vec<MediaEdge>
+    edges: Vec<MediaEdge>,
 }
 
 #[derive(Deserialize)]
@@ -133,12 +136,9 @@ impl Instagram {
     //     println!("{}", res.unwrap().into_string().unwrap());
     // }
 
-
     fn web_profile_info(&self, username: &str) -> Result<Vec<AlertData>, AlertyError> {
         let page_url = format!("https://www.instagram.com/{username}/");
-        let res = self.agent.get(&page_url)
-            .set("Referer", &page_url)
-            .call()?;
+        let res = self.agent.get(&page_url).set("Referer", &page_url).call()?;
         let page_html = res.into_string().unwrap();
         //println!("{page_html}");
         let doc = Html::parse_document(&page_html);
@@ -149,27 +149,55 @@ impl Instagram {
                 return Err(AlertyError::other("Failed to find RelayAPIConfigDefaults"));
             };
             let text = script.text().collect::<String>();
-            let Ok(serde_json::Value::Object(json)) = serde_json::from_str::<serde_json::Value>(&text) else { continue };
-            let Some(serde_json::Value::Array(require)) = json.get("require") else { continue };
+            let Ok(serde_json::Value::Object(json)) =
+                serde_json::from_str::<serde_json::Value>(&text)
+            else {
+                continue;
+            };
+            let Some(serde_json::Value::Array(require)) = json.get("require") else {
+                continue;
+            };
             for element in require {
-                let serde_json::Value::Array(element) = element else { continue };
-                let Some(serde_json::Value::String(key)) = element.first() else { continue };
+                let serde_json::Value::Array(element) = element else {
+                    continue;
+                };
+                let Some(serde_json::Value::String(key)) = element.first() else {
+                    continue;
+                };
                 if key != "ScheduledServerJS" {
                     continue;
                 }
-                let Some(serde_json::Value::Array(args)) = element.get(3) else { continue };
+                let Some(serde_json::Value::Array(args)) = element.get(3) else {
+                    continue;
+                };
                 for arg in args {
-                    let serde_json::Value::Object(arg) = arg else { continue };
-                    let Some(serde_json::Value::Object(bbox)) = arg.get("__bbox") else { continue };
-                    let Some(serde_json::Value::Array(define)) = bbox.get("define") else { continue };
+                    let serde_json::Value::Object(arg) = arg else {
+                        continue;
+                    };
+                    let Some(serde_json::Value::Object(bbox)) = arg.get("__bbox") else {
+                        continue;
+                    };
+                    let Some(serde_json::Value::Array(define)) = bbox.get("define") else {
+                        continue;
+                    };
                     for element in define {
-                        let serde_json::Value::Array(element) = element else { continue };
-                        let Some(serde_json::Value::String(key)) = element.first() else { continue };
+                        let serde_json::Value::Array(element) = element else {
+                            continue;
+                        };
+                        let Some(serde_json::Value::String(key)) = element.first() else {
+                            continue;
+                        };
                         if key != "RelayAPIConfigDefaults" {
                             continue;
                         }
-                        let Some(serde_json::Value::Object(kwargs)) = element.get(2) else { continue };
-                        let Some(serde_json::Value::Object(custom_headers)) = kwargs.get("customHeaders") else { continue };
+                        let Some(serde_json::Value::Object(kwargs)) = element.get(2) else {
+                            continue;
+                        };
+                        let Some(serde_json::Value::Object(custom_headers)) =
+                            kwargs.get("customHeaders")
+                        else {
+                            continue;
+                        };
                         let Some(x_ig_app_id) = custom_headers.iter().find_map(|(k, v)| {
                             if k == "X-IG-App-ID" {
                                 if let serde_json::Value::String(value) = v {
@@ -180,7 +208,9 @@ impl Instagram {
                             } else {
                                 None
                             }
-                        }) else { continue };
+                        }) else {
+                            continue;
+                        };
                         break 'outer x_ig_app_id;
                     }
                 }
@@ -197,7 +227,9 @@ impl Instagram {
         //     }
         // }).ok_or_else(|| AlertyError::other("missing csrf token"))?;
         //return Ok(());
-        let req = self.agent.get("https://www.instagram.com/api/v1/users/web_profile_info/")
+        let req = self
+            .agent
+            .get("https://www.instagram.com/api/v1/users/web_profile_info/")
             .set("Referer", &page_url)
             .set("X-IG-WWW-Claim", "0")
             .set("X-Requested-With", "XMLHttpRequest")
@@ -208,21 +240,30 @@ impl Instagram {
 
         let res = req.call()?;
         let web_profile_info = res.into_json::<WebProfileInfo>()?;
-        let data = web_profile_info.data.user.edge_owner_to_timeline_media.edges.into_iter()
+        let data = web_profile_info
+            .data
+            .user
+            .edge_owner_to_timeline_media
+            .edges
+            .into_iter()
             .map(|media_edge| {
                 let node = media_edge.node;
-                let texts = node.edge_media_to_caption.edges.into_iter().map(|caption_edge| {
-                    caption_edge.node.text
-                }).collect::<Vec<_>>();
+                let texts = node
+                    .edge_media_to_caption
+                    .edges
+                    .into_iter()
+                    .map(|caption_edge| caption_edge.node.text)
+                    .collect::<Vec<_>>();
                 let shortcode = node.shortcode;
                 AlertData {
                     id: node.id,
                     thumbnail: Some(node.thumbnail_src),
                     text: Some(texts.join("\n")),
                     link: Some(format!("https://www.instagram.com/p/{shortcode}/")),
-                    .. Default::default()
+                    ..Default::default()
                 }
-            }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
         //println!("{:?}", res.into_string().unwrap());
 
         Ok(data)
@@ -235,21 +276,20 @@ pub struct InstagramConfig {
 }
 
 impl AlertSourceConfig for InstagramConfig {
-    // fn from_toml() -> Self {
-    //     InstagramConfig
-    // }
-}
-
-impl AlertSource for Instagram {
-    type Config = InstagramConfig;
-    fn initialize(config: &Self::Config) -> Self {
+    type Source = Instagram;
+    fn initialize_source(&self) -> Self::Source {
         let agent: ureq::Agent = ureq::AgentBuilder::new()
             .user_agent(CHROME_WIN_USER_AGENT)
             .cookie_store(CookieStore::new(None))
             .build();
-        Self { agent, username: config.username.clone() }
+        Self::Source {
+            agent,
+            username: self.username.clone(),
+        }
     }
+}
 
+impl AlertSource for Instagram {
     fn id(&self) -> String {
         self.username.clone()
     }

@@ -8,7 +8,10 @@ pub enum AlertyError {
 }
 
 impl AlertyError {
-    pub fn other<S>(error: S) -> Self where S: ToString {
+    pub fn other<S>(error: S) -> Self
+    where
+        S: ToString,
+    {
         AlertyError::Other(error.to_string())
     }
 }

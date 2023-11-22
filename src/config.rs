@@ -1,12 +1,12 @@
 use std::env;
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
-use crate::ResultDatabase;
 use crate::error::AlertyError;
-use crate::source_iter::{SourceIter, DataType};
+use crate::source_iter::{DataType, SourceIter};
 use crate::sources::bandwear::BandwearConfig;
 use crate::sources::instagram::InstagramConfig;
+use crate::ResultDatabase;
+use serde::Deserialize;
 
 fn default_database_path() -> PathBuf {
     let mut home_dir: PathBuf = env::var_os("HOME").map(PathBuf::from).unwrap();
@@ -18,7 +18,7 @@ fn default_database_path() -> PathBuf {
 
 #[derive(Deserialize)]
 pub struct Config {
-    #[serde(default="default_database_path")]
+    #[serde(default = "default_database_path")]
     pub(crate) database_path: PathBuf,
     pub(crate) instagram: Option<Vec<InstagramConfig>>,
     pub(crate) bandwear: Option<Vec<BandwearConfig>>,
@@ -31,14 +31,18 @@ impl Config {
         Ok(config)
     }
 
-    pub(crate) fn sources<'a>(&'a self) -> SourceIter<'a> {
-        SourceIter { this: self, datatype: DataType::Instagram, idx: 0 }
+    pub(crate) fn sources(&self) -> SourceIter<'_> {
+        SourceIter {
+            this: self,
+            datatype: DataType::Instagram,
+            idx: 0,
+        }
     }
 
     pub(crate) fn load_database(&self) -> Result<ResultDatabase, AlertyError> {
         let database_path = &self.database_path;
         let database = if database_path.exists() {
-            let data = std::fs::read_to_string(&database_path)?;
+            let data = std::fs::read_to_string(database_path)?;
             serde_json::from_str::<ResultDatabase>(&data)?
         } else {
             ResultDatabase::default()

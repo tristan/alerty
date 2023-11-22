@@ -1,10 +1,10 @@
+mod config;
+mod error;
+mod source_iter;
 mod sources;
 pub mod utils;
-mod config;
-mod source_iter;
-mod error;
 
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use error::AlertyError;
 use serde::{Deserialize, Serialize};
@@ -21,32 +21,45 @@ pub struct AlertData {
     pub link: Option<String>,
 }
 
-type ResultDatabase = HashMap<DataType, HashMap<String, Vec<AlertData>>>;
+type ResultDatabaseData = HashMap<DataType, HashMap<String, Vec<AlertData>>>;
+type ResultDatabaseErrors = Vec<(DataType, String, String)>;
+
+#[derive(Default, Serialize, Deserialize)]
+struct ResultDatabase {
+    data: ResultDatabaseData,
+    errors: ResultDatabaseErrors,
+}
 
 pub fn run(config: &Config) -> Result<(), AlertyError> {
-
     let mut database = config.load_database()?;
 
-    let mut new_results: ResultDatabase = HashMap::new();
-    let mut errors: Vec<(DataType, String, AlertyError)> = Vec::new();
+    let mut new_results: ResultDatabaseData = Default::default();
+    let mut errors: Vec<(DataType, String, String)> = Vec::new();
 
-    for source in config.sources() {
-        let datatype = source.0.datatype();
+    for (datatype, source) in config.sources() {
         println!("fetching {:?}:{}", datatype, source.0.id());
-        let data = database.entry(datatype).or_default();
+        let data = database.data.entry(datatype).or_default();
         let old_data = data.entry(source.0.id()).or_default();
         let new_data = match source.0.fetch() {
             Ok(new_data) => new_data,
             Err(e) => {
-                errors.push((datatype, source.0.id(), e));
+                errors.push((datatype, source.0.id(), e.to_string()));
                 continue;
             }
         };
-        let diff = calculate_diff(old_data, new_data.clone());
-        *old_data = new_data;
-        if !diff.is_empty() {
-            let results = new_results.entry(datatype).or_default();
-            results.insert(source.0.id(), diff);
+        if new_data.is_empty() {
+            errors.push((
+                datatype,
+                source.0.id(),
+                String::from("Empty data"),
+            ));
+        } else {
+            let diff = calculate_diff(old_data, new_data.clone());
+            *old_data = new_data;
+            if !diff.is_empty() {
+                let results = new_results.entry(datatype).or_default();
+                results.insert(source.0.id(), diff);
+            }
         }
     }
 
@@ -57,21 +70,31 @@ pub fn run(config: &Config) -> Result<(), AlertyError> {
         // send as email
     }
 
+    let new_errors = calculate_error_diff(&database.errors, errors.clone());
+    if !new_errors.is_empty() {
+        // TODO
+    }
+    database.errors = errors;
+
     config.save_database(&database)?;
 
     Ok(())
 }
 
-fn calculate_diff(
-    old_data: &[AlertData],
-    mut new_data: Vec<AlertData>,
-) -> Vec<AlertData> {
+fn calculate_diff(old_data: &[AlertData], mut new_data: Vec<AlertData>) -> Vec<AlertData> {
     new_data.retain(|new| {
         if let Some(old) = old_data.iter().find(|old| old.id == new.id) {
             old != new // we only care about this if there is something different
         } else {
             true
         }
+    });
+    new_data
+}
+
+fn calculate_error_diff(old_data: &ResultDatabaseErrors, mut new_data: ResultDatabaseErrors) -> ResultDatabaseErrors {
+    new_data.retain(|new| {
+        !old_data.iter().any(|old| old == new)
     });
     new_data
 }

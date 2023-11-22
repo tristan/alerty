@@ -1,4 +1,7 @@
-use std::{path::{PathBuf, self}, env};
+use std::{
+    env,
+    path::{self, PathBuf},
+};
 
 use alerty::Config;
 
