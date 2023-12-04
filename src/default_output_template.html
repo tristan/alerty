@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    {%- for result in results %}
+      <div>
+        <h3>{{ result }}</h3>
+        <table border="1">
+          {%- for id in results[result] %}
+            {%- for data in results[result][id] %}
+              <tr>
+                <td>
+                  {%- if data.thumbnail %}
+                    <img width="200px" src="{{ data.thumbnail }}">
+                  {%- endif %}
+                </td>
+                <td padding="5">
+                  <p>{{ id }}</p>
+                  <p>
+                    {%- if data.title %}
+                      {%- if data.link %}
+                        <a href="{{ data.link }}">
+                      {%- endif %}
+                      {{ data.title }}
+                      {%- if data.link %}
+                        </a>
+                      {%- endif %}
+                    {%- elif data.link %}
+                      <a href="{{ data.link }}">{{ data.link }}</a>
+                    {%- endif %}
+                  </p>
+                </td>
+                <td padding="5">
+                  {%- if data.text %}
+                    {%- for p in data.text|split("\n") %}
+                      <p>{{ p }}</p>
+                    {%- endfor %}
+                  {%- endif %}
+                </td>
+              </tr>
+            {%- endfor %}
+          {%- endfor %}
+        </table>
+      </div>
+    {%- endfor %}
+    {%- if errors|length > 0 %}
+      <h3>ERRORS</h3>
+      <ul>
+        {%- for type, id, error in errors %}
+          <li>{{ type }} {{ id }}: {{ error }}</li>
+        {%- endfor %}
+      </ul>
+    {%- endif %}
+  </body>
+</html>

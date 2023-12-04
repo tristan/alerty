@@ -255,6 +255,7 @@ impl Instagram {
                     .map(|caption_edge| caption_edge.node.text)
                     .collect::<Vec<_>>();
                 let shortcode = node.shortcode;
+                // TODO: figure out thumbnails that aren't blocked by CORS
                 AlertData {
                     id: node.id,
                     thumbnail: Some(node.thumbnail_src),
@@ -296,5 +297,9 @@ impl AlertSource for Instagram {
 
     fn fetch(&self) -> Result<Vec<AlertData>, AlertyError> {
         self.web_profile_info(&self.username)
+    }
+
+    fn diff(&self, lhs: &AlertData, rhs: &AlertData) -> bool {
+        lhs.id == rhs.id && lhs.link == rhs.link && lhs.title == rhs.title && lhs.text == rhs.text
     }
 }
