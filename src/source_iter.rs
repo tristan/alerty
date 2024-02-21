@@ -9,7 +9,7 @@ pub(crate) trait AlertSourceConfig {
 pub(crate) trait AlertSource {
     fn fetch(&self) -> Result<Vec<AlertData>, AlertyError>;
     fn id(&self) -> String;
-    fn diff(&self, lhs: &AlertData, rhs: &AlertData) -> bool {
+    fn is_equal(&self, lhs: &AlertData, rhs: &AlertData) -> bool {
         lhs == rhs
     }
 }

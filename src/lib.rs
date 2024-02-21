@@ -118,7 +118,7 @@ fn calculate_diff(
 ) -> Vec<AlertData> {
     new_data.retain(|new| {
         if let Some(old) = old_data.iter().find(|old| old.id == new.id) {
-            source.diff(old, new) // we only care about this if there is something different
+            !source.is_equal(old, new) // we only care about this if there is something different
         } else {
             true
         }

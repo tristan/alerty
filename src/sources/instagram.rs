@@ -299,7 +299,7 @@ impl AlertSource for Instagram {
         self.web_profile_info(&self.username)
     }
 
-    fn diff(&self, lhs: &AlertData, rhs: &AlertData) -> bool {
+    fn is_equal(&self, lhs: &AlertData, rhs: &AlertData) -> bool {
         lhs.id == rhs.id && lhs.link == rhs.link && lhs.title == rhs.title && lhs.text == rhs.text
     }
 }
