@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::error::AlertyError;
 use crate::source_iter::{DataType, SourceIter};
 use crate::sources::bandwear::BandwearConfig;
+use crate::sources::github_releases::GithubReleasesConfig;
 use crate::sources::instagram::InstagramConfig;
 use crate::{format_current_datetime, ResultDatabase};
 use serde::de::Visitor;
@@ -24,6 +25,7 @@ pub struct Config {
     pub(crate) output_template_path: Option<PathBuf>,
     pub(crate) instagram: Option<Vec<InstagramConfig>>,
     pub(crate) bandwear: Option<Vec<BandwearConfig>>,
+    pub(crate) github_releases: Option<Vec<GithubReleasesConfig>>,
     pub smtp: Option<SmtpConfig>,
     pub outputs: Option<Vec<OutputType>>,
 }

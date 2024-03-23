@@ -27,6 +27,7 @@ pub(crate) fn initialize_boxedsource<S: AlertSource + 'static>(
 pub(crate) enum DataType {
     Instagram,
     Bandwear,
+    GithubReleases,
 }
 
 pub(crate) struct SourceIter<'a> {
@@ -54,6 +55,15 @@ impl<'a> Iterator for SourceIter<'a> {
                 DataType::Bandwear => {
                     if let Some(bw) = &this.bandwear {
                         if let Some(cfg) = bw.get(self.idx) {
+                            break initialize_boxedsource(cfg);
+                        }
+                    }
+                    self.datatype = DataType::GithubReleases;
+                    self.idx = 0;
+                }
+                DataType::GithubReleases => {
+                    if let Some(ghr) = &this.github_releases {
+                        if let Some(cfg) = ghr.get(self.idx) {
                             break initialize_boxedsource(cfg);
                         }
                     }

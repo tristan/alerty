@@ -139,6 +139,9 @@ impl Instagram {
     fn web_profile_info(&self, username: &str) -> Result<Vec<AlertData>, AlertyError> {
         let page_url = format!("https://www.instagram.com/{username}/");
         let res = self.agent.get(&page_url).set("Referer", &page_url).call()?;
+        if !res.status() == 200 {
+            return Err(AlertyError::other(format!("Initial fetch returned response: {}", res.status())));
+        }
         let page_html = res.into_string().unwrap();
         //println!("{page_html}");
         let doc = Html::parse_document(&page_html);
@@ -281,6 +284,7 @@ impl AlertSourceConfig for InstagramConfig {
     fn initialize_source(&self) -> Self::Source {
         let agent: ureq::Agent = ureq::AgentBuilder::new()
             .user_agent(CHROME_WIN_USER_AGENT)
+            .redirects(0)
             .cookie_store(CookieStore::new(None))
             .build();
         Self::Source {
